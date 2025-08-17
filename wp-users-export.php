@@ -107,8 +107,9 @@ function wpue_get_github_latest_release() {
         'zipball' => $zip,
         'html_url' => isset($body['html_url']) ? $body['html_url'] : sprintf('https://github.com/%s/%s/releases', WPUE_GH_OWNER, WPUE_GH_REPO),
     ];
-    // Cache for 6 hours
+    // Cache for 6 hours and record last check timestamp
     set_transient($transient_key, $result, 6 * HOUR_IN_SECONDS);
+    set_transient('wpue_github_last_check', time(), 6 * HOUR_IN_SECONDS);
     return $result;
 }
 
@@ -355,6 +356,30 @@ function wpue_render_export_page() {
             </p>
         </form>
 
+        <?php
+            // Update status info
+            $last_check_ts = get_transient('wpue_github_last_check');
+            $last_check = $last_check_ts ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $last_check_ts) : __('(ainda não verificado)', 'wp-users-export');
+            $latest = get_transient('wpue_github_latest_release');
+            $latest_ver = $latest && !empty($latest['version']) ? $latest['version'] : __('(indisponível)', 'wp-users-export');
+            $latest_url = $latest && !empty($latest['html_url']) ? $latest['html_url'] : '';
+        ?>
+        <h2><?php echo esc_html__('Estado de atualização', 'wp-users-export'); ?></h2>
+        <div style="max-width:680px; border:1px solid #ddd; padding:12px;">
+            <p><strong><?php echo esc_html__('Última verificação:', 'wp-users-export'); ?></strong> <?php echo esc_html($last_check); ?></p>
+            <p><strong><?php echo esc_html__('Última versão disponível:', 'wp-users-export'); ?></strong>
+                <?php echo esc_html($latest_ver); ?>
+                <?php if ($latest_url) : ?>
+                    — <a href="<?php echo esc_url($latest_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Notas da versão', 'wp-users-export'); ?></a>
+                <?php endif; ?>
+            </p>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('wpue_force_check', 'wpue_nonce'); ?>
+                <input type="hidden" name="action" value="wpue_force_check" />
+                <button type="submit" class="button"><?php echo esc_html__('Verificar agora', 'wp-users-export'); ?></button>
+            </form>
+        </div>
+
         <p>
             <small>
                 <?php echo esc_html__('Dica: Para filtros avançados, exporte todos e trate no Excel/LibreOffice.', 'wp-users-export'); ?>
@@ -382,3 +407,20 @@ function wpue_save_settings() {
     exit;
 }
 add_action('admin_post_wpue_save_settings', 'wpue_save_settings');
+
+// Force update check handler
+function wpue_force_check() {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Sem permissão.', 'wp-users-export'));
+    }
+    if (!isset($_POST['wpue_nonce']) || !wp_verify_nonce($_POST['wpue_nonce'], 'wpue_force_check')) {
+        wp_die(__('Nonce inválido.', 'wp-users-export'));
+    }
+    delete_transient('wpue_github_latest_release');
+    delete_transient('wpue_github_last_check');
+    // Trigger a fresh check
+    wpue_get_github_latest_release();
+    wp_safe_redirect(add_query_arg(['page' => 'wpue-export', 'checked' => '1'], admin_url('users.php')));
+    exit;
+}
+add_action('admin_post_wpue_force_check', 'wpue_force_check');

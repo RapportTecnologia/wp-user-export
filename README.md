@@ -1,5 +1,7 @@
 # WP Users Export
 
+[![Release](https://img.shields.io/github/v/release/RapportTecnologia/wp-user-export?display_name=tag&sort=semver)](https://github.com/RapportTecnologia/wp-user-export/releases)
+
 Exporta usuários do WordPress de forma simples. Disponibiliza dois botões na área administrativa em "Usuários → Exportar Usuários":
 
 - Exportar usuários (CSV) — inclui dados e estatísticas.
