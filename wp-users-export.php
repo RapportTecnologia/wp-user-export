@@ -3,7 +3,7 @@
  * Plugin Name: WP Users Export
  * Description: Exporta usuários do WordPress. Fornece dois botões: (1) Exportar todos os usuários com dados e estatísticas (CSV). (2) Exportar todos os e-mails, um por linha (TXT).
  * Version: 1.0.50
- * Author: Carlos Delfino
+ * Author: Carlos Delfino <consultoria@carlosdelfino.eti.br>
  * Text Domain: wp-users-export
  * Domain Path: /languages
  * Requires at least: 5.8
@@ -468,3 +468,19 @@ function wpue_force_check() {
     exit;
 }
 add_action('admin_post_wpue_force_check', 'wpue_force_check');
+
+// ---- Admin footer (links) ----
+function wpue_admin_footer_links() {
+    if (!is_admin()) { return; }
+    $page = isset($_GET['page']) ? sanitize_key($_GET['page']) : '';
+    if ($page !== 'wpue-export') { return; }
+    $owner = defined('WPUE_GH_OWNER') ? WPUE_GH_OWNER : 'RapportTecnologia';
+    $repo  = defined('WPUE_GH_REPO')  ? WPUE_GH_REPO  : 'wp-user-export';
+    $repo_url = sprintf('https://github.com/%s/%s', $owner, $repo);
+    $web_url  = sprintf('https://rapport.tec.br/%s', $repo);
+    echo '<div style="margin-top:16px;opacity:.8"><small>'
+        . 'Repositório: <a href="' . esc_url($repo_url) . '" target="_blank" rel="noopener">' . esc_html($repo_url) . '</a>'
+        . ' — Página: <a href="' . esc_url($web_url) . '" target="_blank" rel="noopener">' . esc_html($web_url) . '</a>'
+        . '</small></div>';
+}
+add_action('admin_footer', 'wpue_admin_footer_links');
