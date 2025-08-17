@@ -1,5 +1,7 @@
 # WP Users Export
 
+![visitors](https://visitor-badge.laobi.icu/badge?page_id=rapporttecnologia.wp-user-export)
+
 [![Release](https://img.shields.io/github/v/release/RapportTecnologia/wp-user-export?display_name=tag&sort=semver)](https://github.com/RapportTecnologia/wp-user-export/releases)
 
 Exporta usuários do WordPress de forma simples. Disponibiliza dois botões na área administrativa em "Usuários → Exportar Usuários":
@@ -41,10 +43,27 @@ As exportações são entregues compactadas em arquivos ZIP.
 - Ao usar "apenas novos", o plugin mantém um carimbo de tempo separado para cada tipo de exportação e o atualiza ao término de cada exportação.
 - Em ambientes com muitos usuários, a exportação ocorre em lotes.
 
-## Suporte e Autor
-- Autor: Carlos Delfino
-- E-mail: consultoria@carlosdelfino.eti.br
-- GitHub: https://github.com/carlosdelfino
+## Suporte
+
+- Abra uma issue: https://github.com/RapportTecnologia/wp-user-export/issues
+- Descreva claramente o problema, passos para reproduzir e inclua logs/prints.
+
+## Sugerir melhorias
+
+- Também via issues: https://github.com/RapportTecnologia/wp-user-export/issues
+- Marque como “enhancement” e explique o caso de uso.
+
+## Contribua (PIX)
+
+Se este plugin ajuda você, considere um PIX de R$ 10 para apoiar a manutenção e o tempo dedicado:
+
+Chave PIX: inter@carlosdelfino.eti.br
+
+Muito obrigado pelo apoio!
+
+## Autor
+
+- Carlos Delfino — consultoria@carlosdelfino.eti.br — https://github.com/carlosdelfino
 
 ## Licença
 Consulte o arquivo `LICENSE` no repositório do projeto.
