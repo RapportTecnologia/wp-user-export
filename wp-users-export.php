@@ -477,7 +477,7 @@ function wpue_admin_footer_links() {
     $owner = defined('WPUE_GH_OWNER') ? WPUE_GH_OWNER : 'RapportTecnologia';
     $repo  = defined('WPUE_GH_REPO')  ? WPUE_GH_REPO  : 'wp-user-export';
     $repo_url = sprintf('https://github.com/%s/%s', $owner, $repo);
-    $web_url  = sprintf('https://rapport.tec.br/%s', $repo);
+    $web_url  = sprintf('https://rapport.tec.br/%s/%s', $owner, $repo);
     echo '<div style="margin-top:16px;opacity:.8"><small>'
         . 'Repositório: <a href="' . esc_url($repo_url) . '" target="_blank" rel="noopener">' . esc_html($repo_url) . '</a>'
         . ' — Página: <a href="' . esc_url($web_url) . '" target="_blank" rel="noopener">' . esc_html($web_url) . '</a>'
