@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Users Export
  * Description: Exporta usuários do WordPress. Fornece dois botões: (1) Exportar todos os usuários com dados e estatísticas (CSV). (2) Exportar todos os e-mails, um por linha (TXT).
- * Version: 1.0.41
+ * Version: 1.0.42
  * Author: Carlos Delfino
  * Text Domain: wp-users-export
  * Domain Path: /languages
@@ -107,9 +107,9 @@ function wpue_get_github_latest_release() {
         'zipball' => $zip,
         'html_url' => isset($body['html_url']) ? $body['html_url'] : sprintf('https://github.com/%s/%s/releases', WPUE_GH_OWNER, WPUE_GH_REPO),
     ];
-    // Cache for 6 hours and record last check timestamp
-    set_transient($transient_key, $result, 6 * HOUR_IN_SECONDS);
-    set_transient('wpue_github_last_check', time(), 6 * HOUR_IN_SECONDS);
+    // Cache for 1 week and record last check timestamp
+    set_transient($transient_key, $result, WEEK_IN_SECONDS);
+    set_transient('wpue_github_last_check', time(), WEEK_IN_SECONDS);
     return $result;
 }
 
