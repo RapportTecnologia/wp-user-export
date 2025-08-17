@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.50] - 2025-08-17
+### Added
+- Ações na lista de plugins: link de Configurações e alternância para ativar/desativar atualização automática.
+- Handler `admin_post_wpue_toggle_auto_update` para alternar auto-update a partir da lista de plugins.
+- UI com abas em `Usuários → WP Users Export`: “Exportação” e “Configuração”.
+
+### Improved
+- Melhor integração do fluxo de atualização via listagem de plugins (update checker já integrava o processo).
+
+## [1.0.42] - 2025-08-17
+### Changed
+- Período de cache para verificação de novo release no GitHub alterado de 6 horas para 1 semana.
+- Mantida a verificação manual via botão “Verificar agora” na aba Configuração.
+
 ## [1.0.40] - 2025-08-17
 ### Added
 - Verificação de novo release no GitHub (API) com cache em transient.
