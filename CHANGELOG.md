@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.40] - 2025-08-17
+### Added
+- Verificação de novo release no GitHub (API) com cache em transient.
+- Integração com o sistema de updates do WordPress (oferece pacote .zip do release).
+- Aviso no admin quando houver nova versão disponível.
+- Opção para habilitar atualização automática do plugin (checkbox em Configurações da página de exportação).
+- Secção “Configurações” na UI para salvar a preferência de auto-update.
+
+### Changed
+- Melhoria geral de UX na página de exportação ao incluir área de configurações.
+
+### Notes
+- O pacote para atualização é obtido diretamente do release (tag) no GitHub.
+- A consulta de novas versões é feita a cada 6 horas (transient).
+
 ## [1.0.21] - 2025-08-17
 ### Added
 - Tela de administração em `Usuários → Exportar Usuários` com dois botões de exportação.

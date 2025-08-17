@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Users Export
  * Description: Exporta usuários do WordPress. Fornece dois botões: (1) Exportar todos os usuários com dados e estatísticas (CSV). (2) Exportar todos os e-mails, um por linha (TXT).
- * Version: 1.0.21
+ * Version: 1.0.40
  * Author: Carlos Delfino
  * Text Domain: wp-users-export
  * Domain Path: /languages
@@ -21,6 +21,14 @@ if (!defined('WPUE_PLUGIN_DIR')) {
 }
 if (!defined('WPUE_PLUGIN_URL')) {
     define('WPUE_PLUGIN_URL', plugin_dir_url(__FILE__));
+}
+
+// GitHub repo metadata
+if (!defined('WPUE_GH_OWNER')) {
+    define('WPUE_GH_OWNER', 'RapportTecnologia');
+}
+if (!defined('WPUE_GH_REPO')) {
+    define('WPUE_GH_REPO', 'wp-user-export');
 }
 
 // Load text domain
@@ -62,6 +70,159 @@ register_activation_hook(__FILE__, 'wpue_on_activation');
 
 // Include exporters
 require_once WPUE_PLUGIN_DIR . 'includes/exporters.php';
+
+// ========= Update Checker (GitHub) =========
+/**
+ * Fetch latest release info from GitHub API
+ */
+function wpue_get_github_latest_release() {
+    $transient_key = 'wpue_github_latest_release';
+    $cached = get_transient($transient_key);
+    if ($cached) {
+        return $cached;
+    }
+
+    $api = sprintf('https://api.github.com/repos/%s/%s/releases/latest', WPUE_GH_OWNER, WPUE_GH_REPO);
+    $resp = wp_remote_get($api, [
+        'headers' => [ 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'WordPress-WPUE' ],
+        'timeout' => 15,
+    ]);
+    if (is_wp_error($resp)) {
+        return false;
+    }
+    $code = wp_remote_retrieve_response_code($resp);
+    if ($code !== 200) {
+        return false;
+    }
+    $body = json_decode(wp_remote_retrieve_body($resp), true);
+    if (!is_array($body) || empty($body['tag_name'])) {
+        return false;
+    }
+    $tag = $body['tag_name']; // e.g., v1.0.21 or 1.0.21
+    $ver = ltrim(trim($tag), 'vV');
+    $zip = sprintf('https://github.com/%s/%s/archive/refs/tags/%s.zip', WPUE_GH_OWNER, WPUE_GH_REPO, rawurlencode($body['tag_name']));
+    $result = [
+        'version' => $ver,
+        'tag' => $body['tag_name'],
+        'zipball' => $zip,
+        'html_url' => isset($body['html_url']) ? $body['html_url'] : sprintf('https://github.com/%s/%s/releases', WPUE_GH_OWNER, WPUE_GH_REPO),
+    ];
+    // Cache for 6 hours
+    set_transient($transient_key, $result, 6 * HOUR_IN_SECONDS);
+    return $result;
+}
+
+/**
+ * Inject update info into WordPress updates
+ */
+function wpue_inject_update_info($transient) {
+    if (empty($transient) || empty($transient->checked)) {
+        return $transient;
+    }
+
+    if (!function_exists('get_plugin_data')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    $plugin_file = plugin_basename(__FILE__);
+    $plugin_data = get_plugin_data(__FILE__, false, false);
+    $current_version = isset($plugin_data['Version']) ? $plugin_data['Version'] : '0.0.0';
+
+    $release = wpue_get_github_latest_release();
+    if (!$release) {
+        return $transient;
+    }
+    if (version_compare($release['version'], $current_version, '>')) {
+        $obj = (object) [
+            'slug' => dirname($plugin_file),
+            'plugin' => $plugin_file,
+            'new_version' => $release['version'],
+            'package' => $release['zipball'],
+            'url' => $release['html_url'],
+            'tested' => '6.5',
+            'requires' => '5.8',
+        ];
+        $transient->response[$plugin_file] = $obj;
+        // Flag for admin notice
+        update_option('wpue_latest_available', $release, false);
+    } else {
+        delete_option('wpue_latest_available');
+    }
+
+    return $transient;
+}
+add_filter('pre_set_site_transient_update_plugins', 'wpue_inject_update_info');
+
+/**
+ * Optional: info shown on the update details lightbox
+ */
+function wpue_plugins_api($result, $action, $args) {
+    if ($action !== 'plugin_information') {
+        return $result;
+    }
+    $plugin_file = plugin_basename(__FILE__);
+    if (empty($args->slug) || $args->slug !== dirname($plugin_file)) {
+        return $result;
+    }
+    $release = wpue_get_github_latest_release();
+    if (!$release) {
+        return $result;
+    }
+    $res = (object) [
+        'name' => 'WP Users Export',
+        'slug' => dirname($plugin_file),
+        'version' => $release['version'],
+        'download_link' => $release['zipball'],
+        'homepage' => $release['html_url'],
+        'sections' => [
+            'description' => __('Exporta usuários do WordPress e e-mails com filtros e saída compactada.', 'wp-users-export'),
+            'changelog' => __('Veja o CHANGELOG.md no repositório para detalhes.', 'wp-users-export'),
+        ],
+    ];
+    return $res;
+}
+add_filter('plugins_api', 'wpue_plugins_api', 10, 3);
+
+/**
+ * Admin notice when new release is available
+ */
+function wpue_admin_notice_new_release() {
+    if (!current_user_can('update_plugins')) {
+        return;
+    }
+    $release = get_option('wpue_latest_available');
+    if (!$release || empty($release['version'])) {
+        return;
+    }
+    if (!function_exists('get_plugin_data')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    $plugin_data = get_plugin_data(__FILE__, false, false);
+    $current_version = isset($plugin_data['Version']) ? $plugin_data['Version'] : '0.0.0';
+    if (version_compare($release['version'], $current_version, '>')) {
+        $update_url = admin_url('plugins.php');
+        echo '<div class="notice notice-info is-dismissible"><p>'
+            . esc_html(sprintf(__('Nova versão do WP Users Export disponível: %s (você está na %s). Atualize em Plugins.', 'wp-users-export'), $release['version'], $current_version))
+            . ' <a href="' . esc_url($release['html_url']) . '" target="_blank">' . esc_html__('Notas da versão', 'wp-users-export') . '</a>'
+            . ' | <a href="' . esc_url($update_url) . '">' . esc_html__('Ir para Plugins', 'wp-users-export') . '</a>'
+            . '</p></div>';
+    } else {
+        delete_option('wpue_latest_available');
+    }
+}
+add_action('admin_notices', 'wpue_admin_notice_new_release');
+
+/**
+ * Auto-update toggle (when enabled in settings)
+ */
+function wpue_maybe_auto_update($update, $item) {
+    $plugin_file = plugin_basename(__FILE__);
+    if (!empty($item->plugin) && $item->plugin === $plugin_file) {
+        $enabled = get_option('wpue_enable_auto_update') ? true : false;
+        return $enabled;
+    }
+    return $update;
+}
+add_filter('auto_update_plugin', 'wpue_maybe_auto_update', 10, 2);
 
 // Add admin menu under Users
 function wpue_register_menu() {
@@ -176,6 +337,24 @@ function wpue_render_export_page() {
         </div>
 
         <hr />
+        <h2><?php echo esc_html__('Configurações', 'wp-users-export'); ?></h2>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="max-width:680px;">
+            <?php wp_nonce_field('wpue_save_settings', 'wpue_nonce'); ?>
+            <input type="hidden" name="action" value="wpue_save_settings" />
+            <p>
+                <label>
+                    <input type="checkbox" name="wpue_enable_auto_update" value="1" <?php checked((bool) get_option('wpue_enable_auto_update')); ?> />
+                    <?php echo esc_html__('Habilitar atualização automática deste plugin', 'wp-users-export'); ?>
+                </label>
+            </p>
+            <p class="description">
+                <?php echo esc_html__('Quando habilitado, o WordPress poderá atualizar automaticamente o plugin ao detectar novas versões no GitHub.', 'wp-users-export'); ?>
+            </p>
+            <p>
+                <button type="submit" class="button button-secondary"><?php echo esc_html__('Salvar configurações', 'wp-users-export'); ?></button>
+            </p>
+        </form>
+
         <p>
             <small>
                 <?php echo esc_html__('Dica: Para filtros avançados, exporte todos e trate no Excel/LibreOffice.', 'wp-users-export'); ?>
@@ -188,3 +367,18 @@ function wpue_render_export_page() {
 // Hooks for export actions
 add_action('admin_post_wpue_export_users_csv', 'wpue_handle_export_users_csv');
 add_action('admin_post_wpue_export_emails_txt', 'wpue_handle_export_emails_txt');
+
+// Save settings handler
+function wpue_save_settings() {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Sem permissão.', 'wp-users-export'));
+    }
+    if (!isset($_POST['wpue_nonce']) || !wp_verify_nonce($_POST['wpue_nonce'], 'wpue_save_settings')) {
+        wp_die(__('Nonce inválido.', 'wp-users-export'));
+    }
+    $enabled = !empty($_POST['wpue_enable_auto_update']) ? '1' : '0';
+    update_option('wpue_enable_auto_update', $enabled);
+    wp_safe_redirect(add_query_arg(['page' => 'wpue-export', 'settings-updated' => '1'], admin_url('users.php')));
+    exit;
+}
+add_action('admin_post_wpue_save_settings', 'wpue_save_settings');
