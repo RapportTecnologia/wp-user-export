@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Users Export
  * Description: Exporta usuários do WordPress. Fornece dois botões: (1) Exportar todos os usuários com dados e estatísticas (CSV). (2) Exportar todos os e-mails, um por linha (TXT).
- * Version: 1.0.42
+ * Version: 1.0.50
  * Author: Carlos Delfino
  * Text Domain: wp-users-export
  * Domain Path: /languages
@@ -36,6 +36,41 @@ function wpue_load_textdomain() {
     load_plugin_textdomain('wp-users-export', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
 add_action('plugins_loaded', 'wpue_load_textdomain');
+
+// Add action links in Plugins list (Settings and Auto-Update toggle)
+function wpue_plugin_action_links($links) {
+    $settings_url = add_query_arg(['page' => 'wpue-export', 'tab' => 'settings'], admin_url('users.php'));
+    $settings_link = '<a href="' . esc_url($settings_url) . '">' . esc_html__('Configurações', 'wp-users-export') . '</a>';
+
+    $enabled = (bool) get_option('wpue_enable_auto_update');
+    $action = $enabled ? 'disable' : 'enable';
+    $label = $enabled ? __('Desativar atualização automática', 'wp-users-export') : __('Ativar atualização automática', 'wp-users-export');
+    $toggle_url = wp_nonce_url(admin_url('admin-post.php?action=wpue_toggle_auto_update&do=' . $action), 'wpue_toggle_auto_update', 'wpue_nonce');
+    $toggle_link = '<a href="' . esc_url($toggle_url) . '">' . esc_html($label) . '</a>';
+
+    array_unshift($links, $settings_link, $toggle_link);
+    return $links;
+}
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'wpue_plugin_action_links');
+
+// Handler to toggle auto-update from Plugins list
+function wpue_toggle_auto_update() {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Sem permissão.', 'wp-users-export'));
+    }
+    if (!isset($_GET['wpue_nonce']) || !wp_verify_nonce($_GET['wpue_nonce'], 'wpue_toggle_auto_update')) {
+        wp_die(__('Nonce inválido.', 'wp-users-export'));
+    }
+    $do = isset($_GET['do']) ? sanitize_key($_GET['do']) : '';
+    if ($do === 'enable') {
+        update_option('wpue_enable_auto_update', '1');
+    } elseif ($do === 'disable') {
+        update_option('wpue_enable_auto_update', '0');
+    }
+    wp_safe_redirect(admin_url('plugins.php'));
+    exit;
+}
+add_action('admin_post_wpue_toggle_auto_update', 'wpue_toggle_auto_update');
 
 // Activation check: minimum PHP/WP and ZipArchive
 function wpue_on_activation() {
@@ -246,9 +281,17 @@ function wpue_render_export_page() {
     $users_count = count_users();
     $total_users = isset($users_count['total_users']) ? intval($users_count['total_users']) : 0;
 
+    $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'export';
+    if (!in_array($tab, ['export', 'settings'], true)) { $tab = 'export'; }
     ?>
     <div class="wrap">
-        <h1><?php echo esc_html__('Exportar Usuários', 'wp-users-export'); ?></h1>
+        <h1><?php echo esc_html__('WP Users Export', 'wp-users-export'); ?></h1>
+        <h2 class="nav-tab-wrapper">
+            <a href="<?php echo esc_url(add_query_arg(['page' => 'wpue-export', 'tab' => 'export'], admin_url('users.php'))); ?>" class="nav-tab <?php echo $tab === 'export' ? 'nav-tab-active' : ''; ?>"><?php echo esc_html__('Exportação', 'wp-users-export'); ?></a>
+            <a href="<?php echo esc_url(add_query_arg(['page' => 'wpue-export', 'tab' => 'settings'], admin_url('users.php'))); ?>" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php echo esc_html__('Configuração', 'wp-users-export'); ?></a>
+        </h2>
+
+        <?php if ($tab === 'export') : ?>
         <p><?php echo esc_html(sprintf(__('Total de usuários: %d', 'wp-users-export'), $total_users)); ?></p>
 
         <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap;">
@@ -337,8 +380,13 @@ function wpue_render_export_page() {
             </form>
         </div>
 
-        <hr />
-        <h2><?php echo esc_html__('Configurações', 'wp-users-export'); ?></h2>
+        <p>
+            <small>
+                <?php echo esc_html__('Dica: Para filtros avançados, exporte todos e trate no Excel/LibreOffice.', 'wp-users-export'); ?>
+            </small>
+        </p>
+
+        <?php else : // settings tab ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="max-width:680px;">
             <?php wp_nonce_field('wpue_save_settings', 'wpue_nonce'); ?>
             <input type="hidden" name="action" value="wpue_save_settings" />
@@ -379,12 +427,8 @@ function wpue_render_export_page() {
                 <button type="submit" class="button"><?php echo esc_html__('Verificar agora', 'wp-users-export'); ?></button>
             </form>
         </div>
+        <?php endif; ?>
 
-        <p>
-            <small>
-                <?php echo esc_html__('Dica: Para filtros avançados, exporte todos e trate no Excel/LibreOffice.', 'wp-users-export'); ?>
-            </small>
-        </p>
     </div>
     <?php
 }
