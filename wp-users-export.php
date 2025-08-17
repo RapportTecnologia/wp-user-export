@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Users Export
  * Description: Exporta usuários do WordPress. Fornece dois botões: (1) Exportar todos os usuários com dados e estatísticas (CSV). (2) Exportar todos os e-mails, um por linha (TXT).
- * Version: 1.0.40
+ * Version: 1.0.41
  * Author: Carlos Delfino
  * Text Domain: wp-users-export
  * Domain Path: /languages
